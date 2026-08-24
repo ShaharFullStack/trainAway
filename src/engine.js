@@ -19,11 +19,18 @@ export function networksFor(tile) {
   if (!def) return {};
   const r = ((tile.rotation || 0) % 4 + 4) % 4;
   if (def.kind === 'straight') return { [def.family]: r % 2 ? ['E', 'W'] : ['N', 'S'] };
+  if (['oneWay', 'busLane', 'railSignal'].includes(def.kind)) return { [def.family]: r % 2 ? ['E', 'W'] : ['N', 'S'] };
   if (def.kind === 'curve') return { [def.family]: [['N', 'E'], ['E', 'S'], ['S', 'W'], ['W', 'N']][r] };
   if (def.kind === 'intersection' || def.kind === 'signal') return { road: ['N', 'E', 'S', 'W'] };
+  if (def.kind === 'roundabout') return { road: ['N', 'E', 'S', 'W'] };
   if (def.kind === 'switch') return { rail: [['N', 'E', 'W'], ['N', 'E', 'S'], ['E', 'S', 'W'], ['N', 'S', 'W']][r] };
-  if (def.kind === 'crossing' || def.kind === 'bridge') {
+  if (['crossing', 'bridge', 'gatedCrossing', 'tunnel'].includes(def.kind)) {
     return r % 2 ? { road: ['N', 'S'], rail: ['E', 'W'] } : { road: ['E', 'W'], rail: ['N', 'S'] };
+  }
+  if (def.kind === 'railDiamond' || def.kind === 'railInterlock') return { rail: ['N', 'E', 'S', 'W'] };
+  if (def.kind === 'tramTrack') {
+    const dirs = r % 2 ? ['E', 'W'] : ['N', 'S'];
+    return { road: dirs, rail: dirs };
   }
   return {};
 }
@@ -71,22 +78,54 @@ export function findPath(board, start, target, mode) {
   return null;
 }
 
-function isSignalBlocked(tile, from, to, tick) {
-  if (PIECES[tile?.type]?.kind !== 'signal') return false;
+function isMovementBlocked(tile, vehicle, from, to, tick) {
+  const kind = PIECES[tile?.type]?.kind;
+  if (kind === 'oneWay') {
+    const allowed = ['N', 'E', 'S', 'W'][((tile.rotation || 0) % 4 + 4) % 4];
+    const movement = to.col > from.col ? 'E' : to.col < from.col ? 'W' : to.row > from.row ? 'S' : 'N';
+    return movement !== allowed;
+  }
+  if (kind === 'busLane') return vehicle.kind !== 'bus';
+  if (kind === 'gatedCrossing') {
+    const roadGreen = Math.floor(tick / 3) % 2 === 0;
+    return (vehicle.mode === 'road') !== roadGreen;
+  }
+  if (kind === 'railSignal') {
+    const positive = to.col > from.col || to.row > from.row;
+    const positiveGreen = Math.floor(tick / 4) % 2 === 0;
+    return positive !== positiveGreen;
+  }
+  if (kind === 'railInterlock') {
+    const horizontal = from.row === to.row;
+    const horizontalGreen = Math.floor(tick / 3) % 2 === 0;
+    return horizontal !== horizontalGreen;
+  }
+  if (kind !== 'signal') return false;
   const horizontal = from.row === to.row;
   const horizontalGreen = Math.floor(tick / 3) % 2 === 0;
   return horizontal !== horizontalGreen;
 }
 
 function sharesGrade(tile, a, b) {
-  return PIECES[tile?.type]?.kind === 'bridge' && a.mode !== b.mode;
+  return ['bridge', 'tunnel'].includes(PIECES[tile?.type]?.kind) && a.mode !== b.mode;
 }
 
 export function createSimulation(level, placements) {
   const board = makeBoard(level, placements);
   return {
     level, board, tick: 0, delivered: 0, idleTicks: 0, status: 'running', reason: '',
-    vehicles: level.vehicles.map(vehicle => ({ ...vehicle, col: vehicle.start.col, row: vehicle.start.row, active: false, done: false, waiting: false }))
+    vehicles: level.vehicles.map(vehicle => ({
+      ...vehicle,
+      col: vehicle.start.col,
+      row: vehicle.start.row,
+      prevCol: vehicle.start.col,
+      prevRow: vehicle.start.row,
+      prev2Col: vehicle.start.col,
+      prev2Row: vehicle.start.row,
+      active: false,
+      done: false,
+      waiting: false
+    }))
   };
 }
 
@@ -99,6 +138,12 @@ export function stepSimulation(sim) {
   });
 
   const active = sim.vehicles.filter(v => v.active && !v.done);
+  active.forEach(vehicle => {
+    vehicle.prev2Col = vehicle.prevCol;
+    vehicle.prev2Row = vehicle.prevRow;
+    vehicle.prevCol = vehicle.col;
+    vehicle.prevRow = vehicle.row;
+  });
   const proposals = [];
   for (const vehicle of active) {
     if (vehicle.col === vehicle.target.col && vehicle.row === vehicle.target.row) continue;
@@ -109,13 +154,14 @@ export function stepSimulation(sim) {
     }
     const next = path[1];
     const tile = board.get(key(next.col, next.row));
-    if (isSignalBlocked(tile, vehicle, next, sim.tick)) {
+    if (isMovementBlocked(tile, vehicle, vehicle, next, sim.tick)) {
       vehicle.waiting = true;
       continue;
     }
     proposals.push({ vehicle, from: { col: vehicle.col, row: vehicle.row }, to: next });
   }
 
+  const blockedProposals = new Set();
   for (let i = 0; i < proposals.length; i += 1) {
     for (let j = i + 1; j < proposals.length; j += 1) {
       const a = proposals[i];
@@ -124,7 +170,15 @@ export function stepSimulation(sim) {
       const edgeSwap = a.to.col === b.from.col && a.to.row === b.from.row && b.to.col === a.from.col && b.to.row === a.from.row;
       const tile = board.get(key(a.to.col, a.to.row));
       if ((sameDestination || edgeSwap) && !sharesGrade(tile, a.vehicle, b.vehicle)) {
+        const kind = PIECES[tile?.type]?.kind;
+        if (['roundabout', 'gatedCrossing', 'railInterlock'].includes(kind)) {
+          const loser = String(a.vehicle.id).localeCompare(String(b.vehicle.id)) <= 0 ? b : a;
+          blockedProposals.add(loser);
+          loser.vehicle.waiting = true;
+          continue;
+        }
         sim.status = 'failed';
+        sim.impact = { col: a.to.col, row: a.to.row };
         sim.reason = `Collision at grid ${a.to.col + 1}.${a.to.row + 1}. Both movements claimed the same space.`;
         return sim;
       }
@@ -133,6 +187,7 @@ export function stepSimulation(sim) {
 
   let moved = 0;
   for (const proposal of proposals) {
+    if (blockedProposals.has(proposal)) continue;
     const occupant = active.find(other => other !== proposal.vehicle && other.col === proposal.to.col && other.row === proposal.to.row);
     const occupantMoving = proposals.some(candidate => candidate.vehicle === occupant);
     const tile = board.get(key(proposal.to.col, proposal.to.row));

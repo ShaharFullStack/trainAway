@@ -31,3 +31,42 @@ test('level crossing collides while a bridge separates transport modes', () => {
   assert.equal(runToEnd(level, unsafe).status, 'failed');
   assert.equal(runToEnd(level, level.solution).status, 'success');
 });
+
+test('one-way streets reject traffic moving against their arrows', () => {
+  const level = LEVELS[5];
+  const reversed = level.solution.map(part => ({ ...part, rotation: 3 }));
+  assert.equal(runToEnd(level, level.solution).status, 'success');
+  assert.equal(runToEnd(level, reversed).status, 'failed');
+});
+
+test('roundabout meters the conflict that a plain junction crashes', () => {
+  const level = LEVELS[7];
+  const unsafe = [{ col: 5, row: 3, type: 'intersection', rotation: 0 }];
+  assert.equal(runToEnd(level, unsafe).status, 'failed');
+  assert.equal(runToEnd(level, level.solution).status, 'success');
+});
+
+test('bus lanes reject non-bus vehicles', () => {
+  const level = LEVELS[8];
+  const carOnly = {
+    ...level,
+    vehicles: [{ ...level.vehicles[0], id: 'CAR', kind: 'car', passengers: 1 }],
+    requiredPassengers: 1,
+  };
+  assert.equal(runToEnd(carOnly, level.solution).status, 'failed');
+  assert.equal(runToEnd(level, level.solution).status, 'success');
+});
+
+test('gates protect a road and rail crossing', () => {
+  const level = LEVELS[10];
+  const unsafe = [{ col: 5, row: 3, type: 'levelCrossing', rotation: 0 }];
+  assert.equal(runToEnd(level, unsafe).status, 'failed');
+  assert.equal(runToEnd(level, level.solution).status, 'success');
+});
+
+test('rail interlocking protects a diamond conflict', () => {
+  const level = LEVELS[13];
+  const unsafe = [{ col: 5, row: 3, type: 'railDiamond', rotation: 0 }];
+  assert.equal(runToEnd(level, unsafe).status, 'failed');
+  assert.equal(runToEnd(level, level.solution).status, 'success');
+});
