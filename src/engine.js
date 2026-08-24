@@ -62,13 +62,24 @@ export function connectedNeighbors(board, col, row, mode) {
   return output;
 }
 
-export function findPath(board, start, target, mode) {
+function permanentlyBlocked(tile, vehicle, from, to) {
+  if (!vehicle) return false;
+  const kind = PIECES[tile?.type]?.kind;
+  if (kind === 'busLane' && vehicle.kind !== 'bus') return true;
+  if (kind !== 'oneWay') return false;
+  const allowed = ['N', 'E', 'S', 'W'][((tile.rotation || 0) % 4 + 4) % 4];
+  const movement = to.col > from.col ? 'E' : to.col < from.col ? 'W' : to.row > from.row ? 'S' : 'N';
+  return movement !== allowed;
+}
+
+export function findPath(board, start, target, mode, vehicle = null) {
   const queue = [{ ...start, path: [{ ...start }] }];
   const seen = new Set([key(start.col, start.row)]);
   while (queue.length) {
     const current = queue.shift();
     if (current.col === target.col && current.row === target.row) return current.path;
     for (const next of connectedNeighbors(board, current.col, current.row, mode)) {
+      if (permanentlyBlocked(board.get(key(next.col, next.row)), vehicle, current, next)) continue;
       const id = key(next.col, next.row);
       if (seen.has(id)) continue;
       seen.add(id);
@@ -147,7 +158,7 @@ export function stepSimulation(sim) {
   const proposals = [];
   for (const vehicle of active) {
     if (vehicle.col === vehicle.target.col && vehicle.row === vehicle.target.row) continue;
-    const path = findPath(board, vehicle, vehicle.target, vehicle.mode);
+    const path = findPath(board, vehicle, vehicle.target, vehicle.mode, vehicle);
     if (!path || path.length < 2) {
       vehicle.waiting = true;
       continue;

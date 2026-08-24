@@ -61,14 +61,14 @@ function renderHome() {
   document.body.dataset.screen = 'home';
   app.innerHTML = `
     <section class="title-screen">
-      <div class="filing-mark"><i></i> MASTER STACK / DISPATCH SIMULATOR <span>SHIFT 01</span></div>
+      <div class="filing-mark"><i></i> 20 HAND-BUILT TRANSPORT PUZZLES <span>NETWORK READY</span></div>
       <div class="hero-copy">
         <div class="title-lockup" aria-label="Trains Away">
           <span class="title-trains">TRAINS</span>
           <span class="title-away">AWAY</span>
         </div>
-        <p class="title-copy">Repair the line.<br><strong>Then watch it run.</strong></p>
-        ${button(progress.cleared.length ? 'Continue shift' : 'Start first shift', 'primary big', 'data-action="missions"')}
+        <p class="title-copy">Build the route.<br><strong>Run the timetable.</strong></p>
+        ${button(progress.cleared.length ? 'Continue building' : 'Choose a route', 'primary big', 'data-action="missions"')}
       </div>
       <div class="hero-network" aria-hidden="true">
         <svg viewBox="0 0 700 700">
@@ -80,9 +80,9 @@ function renderHome() {
           <rect class="hero-bus" width="45" height="24" rx="7"><animateMotion dur="9s" repeatCount="indefinite" path="M40 420 H250 Q300 420 300 370 V170 Q300 120 350 120 H650"/></rect>
         </svg>
         <div class="hero-signal"><span></span><span></span><span></span></div>
-        <div class="hero-caption"><b>LIVE MODEL</b><span>Every route is simulated</span></div>
+        <div class="hero-caption"><b>LIVE NETWORK</b><span>Every vehicle follows your layout</span></div>
       </div>
-      <div class="title-footer"><span>NETWORK STATUS / READY</span><span>${progress.cleared.length} OF ${LEVELS.length} FAULTS CLEARED</span><span>BUILD → DISPATCH → DIAGNOSE</span></div>
+      <div class="title-footer"><span>BUILD WITH LIMITED PIECES</span><span>${progress.cleared.length} OF ${LEVELS.length} ROUTES SOLVED</span><span>BUILD → RUN → IMPROVE</span></div>
     </section>`;
 }
 
@@ -92,16 +92,16 @@ function renderMissions() {
   app.innerHTML = `
     <section class="mission-screen">
       <header class="mission-header">
-        ${button('← Desk', 'quiet', 'data-action="home"')}
-        <div><span class="kicker">FIELD BOARD / ${LEVELS.length} LIVE CASES</span><h1>Network fault board</h1></div>
-        <div class="case-count"><strong>${progress.cleared.length}</strong><span>closed</span></div>
+        ${button('← Home', 'quiet', 'data-action="home"')}
+        <div><span class="kicker">THE FULL NETWORK / ${LEVELS.length} ROUTES</span><h1>Choose your next route</h1></div>
+        <div class="case-count"><strong>${progress.cleared.length}</strong><span>solved</span></div>
       </header>
       <div class="mission-route" aria-label="Level selection">
         ${LEVELS.map((item, index) => {
           const clear = progress.cleared.includes(item.id);
           const open = unlocked(item.id);
           return `<button class="case-file ${clear ? 'is-clear' : ''} ${open ? '' : 'is-locked'}" data-level="${item.id}" ${open ? '' : 'disabled'} style="--stagger:${index % 2 ? 18 : 0}px">
-            <span class="case-pin">${clear ? 'CLOSED' : open ? 'OPEN' : 'HELD'}</span>
+            <span class="case-pin">${clear ? 'SOLVED' : open ? 'PLAY' : 'LOCKED'}</span>
             <span class="case-number">${String(item.id).padStart(2, '0')}</span>
             <span class="case-discipline">${item.discipline}</span>
             <strong>${item.title}</strong>
@@ -110,7 +110,7 @@ function renderMissions() {
           </button>`;
         }).join('')}
       </div>
-      <div class="mission-legend"><span><i class="dot open"></i> Available</span><span><i class="dot clear"></i> Closed</span><span>Each case introduces one piece of transport logic.</span></div>
+      <div class="mission-legend"><span><i class="dot open"></i> Available</span><span><i class="dot clear"></i> Solved</span><span>New routes combine geometry, priority, signalling and timing.</span></div>
     </section>`;
   resetViewport();
 }
@@ -121,11 +121,11 @@ function renderGame(showBriefing = false) {
   app.innerHTML = `
     <section class="game-screen ${simulation ? 'is-running' : ''}">
       <header class="game-header">
-        ${button('← Cases', 'quiet', 'data-action="missions"')}
+        ${button('← Routes', 'quiet', 'data-action="missions"')}
         <div class="game-title"><span class="kicker">${level.code} / ${level.place}</span><h1>${level.title}</h1></div>
         <div class="run-readout"><span>PASSENGERS</span><strong id="passenger-count">0 / ${level.requiredPassengers}</strong></div>
       </header>
-      <div class="objective"><span>FIELD ORDER</span><strong>${level.goal}</strong></div>
+      <div class="objective"><span>GOAL</span><strong>${level.goal}</strong></div>
       <div class="workbench">
         <section class="map-wrap">
           <canvas id="map" width="1200" height="720" aria-label="Editable transport plan for ${level.title}"></canvas>
@@ -133,8 +133,8 @@ function renderGame(showBriefing = false) {
           <div class="map-stamp">${level.discipline}<br><b>${level.code}</b></div>
         </section>
         <aside class="parts-tray">
-          <div class="tray-heading"><span>FIELD KIT</span><small>${placements.length} fitted</small></div>
-          <p>Choose a piece, rotate it, then fit it to a striped worksite.</p>
+          <div class="tray-heading"><span>BUILD PIECES</span><small>${placements.length} placed</small></div>
+          <p>Choose, rotate, and place pieces on the marked gaps.</p>
           <div class="piece-list">
             ${Object.entries(level.inventory).map(([type, total]) => {
               const def = PIECES[type];
@@ -149,8 +149,8 @@ function renderGame(showBriefing = false) {
             ${button('Remove fitted piece', 'secondary', `data-action="remove-mode" ${placements.length && !simulation ? '' : 'disabled'}`)}
           </div>
           <div class="dispatch-controls">
-            ${button(simulation ? '■ Stop dispatch' : '<span class="lever-icon">▶</span><span>Dispatch</span>', simulation ? 'stop' : 'run', `data-action="${simulation ? 'stop' : 'run'}"`)}
-            ${button('Reset plan', 'quiet full', 'data-action="reset"')}
+            ${button(simulation ? '■ Stop run' : '<span class="lever-icon">▶</span><span>Run route</span>', simulation ? 'stop' : 'run', `data-action="${simulation ? 'stop' : 'run'}"`)}
+            ${button('Clear', 'quiet full', 'data-action="reset"')}
           </div>
           <button class="hint-tab" data-action="hint">${showHint ? '× Close field note' : '? Open field note'}</button>
           ${showHint ? `<div class="hint-note"><span>ENGINEER’S NOTE</span>${level.hint}</div>` : ''}
@@ -173,11 +173,11 @@ function resetViewport() {
 
 function briefingMarkup() {
   return `<div class="modal-shade"><section class="briefing-card" role="dialog" aria-modal="true" aria-labelledby="brief-title">
-    <div class="brief-index">CASE ${String(level.id).padStart(2, '0')}<span>${level.discipline}</span></div>
+    <div class="brief-index">ROUTE ${String(level.id).padStart(2, '0')}<span>${level.discipline}</span></div>
     <h2 id="brief-title">${level.title}</h2>
     <p>${level.briefing}</p>
-    <div class="brief-goal"><span>FIELD ORDER</span>${level.goal}</div>
-    ${button('Take the job', 'primary', 'data-action="close-brief"')}
+    <div class="brief-goal"><span>GOAL</span>${level.goal}</div>
+    ${button('Start building', 'primary', 'data-action="close-brief"')}
   </section></div>`;
 }
 
@@ -358,6 +358,10 @@ function center(m, tile) { return { x: m.x + (tile.col + .5) * m.cell, y: m.y + 
 
 function drawGround(ctx, m) {
   const reserved = new Set([...level.fixed, ...level.slots].map(cell => key(cell.col,cell.row)));
+  const terrainCells = new Set();
+  (level.terrain || []).forEach(area => {
+    for(let row=area.row;row<area.row+area.h;row+=1) for(let col=area.col;col<area.col+area.w;col+=1) terrainCells.add(key(col,row));
+  });
   ctx.fillStyle = '#7f8f7d';
   ctx.fillRect(m.x - 24, m.y - 24, m.cell * COLS + 48, m.cell * ROWS + 48);
   const grass = ctx.createLinearGradient(m.x,m.y,m.x,m.y+m.cell*ROWS);
@@ -372,14 +376,44 @@ function drawGround(ctx, m) {
     ctx.beginPath(); ctx.moveTo(m.x, m.y + row * m.cell); ctx.lineTo(m.x + COLS * m.cell, m.y + row * m.cell); ctx.stroke();
   }
   if(level.id===4){ctx.fillStyle='#426b73';ctx.fillRect(m.x+m.cell*8.7,m.y,m.cell*1.3,m.cell*ROWS);ctx.strokeStyle='rgba(166,225,221,.2)';for(let y=m.y+12;y<m.y+m.cell*ROWS;y+=18){ctx.beginPath();ctx.moveTo(m.x+m.cell*8.7,y);ctx.lineTo(m.x+m.cell*10,y);ctx.stroke();}}
+  (level.terrain || []).forEach(area => drawTerrain(ctx,m,area));
   for(let row=0;row<ROWS;row+=1){for(let col=0;col<COLS;col+=1){
-    if(reserved.has(key(col,row))) continue;
+    if(reserved.has(key(col,row))||terrainCells.has(key(col,row))) continue;
     const hash=(col*41+row*73+level.id*29)%11;
     const x=m.x+col*m.cell,y=m.y+row*m.cell;
     if(hash<4){drawBuilding(ctx,x+m.cell*.12,y+m.cell*.14,m.cell*.76,m.cell*.68,hash);}
     else if(hash===5||hash===8){drawTree(ctx,x+m.cell*.5,y+m.cell*.52,m.cell*(.12+(hash%2)*.025));}
   }}
   ctx.fillStyle='rgba(7,23,33,.3)';ctx.fillRect(m.x-24,m.y+m.cell*ROWS+1,m.cell*COLS+48,23);
+}
+
+function drawTerrain(ctx,m,area){
+  const x=m.x+area.col*m.cell,y=m.y+area.row*m.cell,w=area.w*m.cell,h=area.h*m.cell;
+  ctx.save();
+  if(area.kind==='water'||area.kind==='wetland'){
+    ctx.fillStyle=area.kind==='water'?'#4f8795':'#6d9485';ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle='rgba(222,245,238,.34)';ctx.lineWidth=2;
+    for(let yy=y+12;yy<y+h;yy+=18){ctx.beginPath();for(let xx=x;xx<=x+w;xx+=18)ctx.lineTo(xx,yy+Math.sin((xx+yy)/24)*3);ctx.stroke();}
+  }else if(area.kind==='park'||area.kind==='orchard'){
+    ctx.fillStyle=area.kind==='park'?'#73956a':'#839865';ctx.fillRect(x,y,w,h);
+    const step=area.kind==='park'?m.cell*.8:m.cell*.52;
+    for(let yy=y+step*.45;yy<y+h;yy+=step)for(let xx=x+step*.45;xx<x+w;xx+=step)drawTree(ctx,xx,yy,m.cell*.11);
+  }else if(area.kind==='rock'){
+    ctx.fillStyle='#8f8879';ctx.fillRect(x,y,w,h);ctx.fillStyle='#68675f';
+    for(let yy=y+m.cell*.25;yy<y+h;yy+=m.cell*.62)for(let xx=x+m.cell*.25;xx<x+w;xx+=m.cell*.7){ctx.beginPath();ctx.moveTo(xx-m.cell*.14,yy+m.cell*.12);ctx.lineTo(xx-m.cell*.05,yy-m.cell*.15);ctx.lineTo(xx+m.cell*.16,yy-m.cell*.08);ctx.lineTo(xx+m.cell*.2,yy+m.cell*.13);ctx.closePath();ctx.fill();}
+  }else if(area.kind==='plaza'||area.kind==='yard'){
+    ctx.fillStyle=area.kind==='plaza'?'#b9b19c':'#8e918b';ctx.fillRect(x,y,w,h);ctx.strokeStyle='rgba(55,64,62,.2)';ctx.lineWidth=1;
+    for(let xx=x;xx<x+w;xx+=m.cell*.25){ctx.beginPath();ctx.moveTo(xx,y);ctx.lineTo(xx,y+h);ctx.stroke();}for(let yy=y;yy<y+h;yy+=m.cell*.25){ctx.beginPath();ctx.moveTo(x,yy);ctx.lineTo(x+w,yy);ctx.stroke();}
+    if(area.kind==='yard'){for(let i=0;i<4;i+=1){ctx.fillStyle=['#bf5845','#d2a33f','#477f89'][i%3];ctx.fillRect(x+m.cell*(.2+i*.62),y+m.cell*.25,m.cell*.48,m.cell*.22);}}
+  }else{
+    ctx.fillStyle=area.kind==='dense'?'#8e9a91':'#a5a993';ctx.fillRect(x,y,w,h);
+    const hospital=area.kind==='hospital',station=area.kind==='station';
+    ctx.fillStyle=hospital?'#e8e4da':station?'#c9b68e':'#9f8d76';ctx.shadowColor='rgba(20,35,33,.28)';ctx.shadowBlur=8;ctx.shadowOffsetY=5;
+    ctx.beginPath();ctx.roundRect(x+m.cell*.16,y+m.cell*.18,w-m.cell*.32,h-m.cell*.36,6);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#314b4e';for(let xx=x+m.cell*.35;xx<x+w-m.cell*.2;xx+=m.cell*.42)for(let yy=y+m.cell*.38;yy<y+h-m.cell*.2;yy+=m.cell*.36)ctx.fillRect(xx,yy,m.cell*.15,m.cell*.09);
+    if(hospital){ctx.fillStyle='#cf4f43';ctx.fillRect(x+w*.5-5,y+h*.5-18,10,36);ctx.fillRect(x+w*.5-18,y+h*.5-5,36,10);}
+  }
+  ctx.restore();
 }
 
 function drawBuilding(ctx,x,y,w,h,variant){
@@ -437,11 +471,28 @@ function traceConnectors(ctx,m,c,dirs){
   ctx.beginPath();for(const point of endpoints){ctx.moveTo(c.x,c.y);ctx.lineTo(point.x,point.y);}
 }
 
+function connectorLines(m,c,dirs){
+  const ends=dirs.map(dir=>({x:c.x+DRAW_DIRS[dir][0]*m.cell*.54,y:c.y+DRAW_DIRS[dir][1]*m.cell*.54,d:DRAW_DIRS[dir]}));
+  if(ends.length===2){
+    const [a,b]=ends,opposite=a.d[0]+b.d[0]===0&&a.d[1]+b.d[1]===0;
+    if(opposite)return [[a,b]];
+    const points=[];for(let i=0;i<=16;i+=1){const t=i/16,u=1-t;points.push({x:u*u*a.x+2*u*t*c.x+t*t*b.x,y:u*u*a.y+2*u*t*c.y+t*t*b.y});}return [points];
+  }
+  return ends.map(end=>[c,end]);
+}
+
+function strokeLine(ctx,points){ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i+=1)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();}
+
+function offsetLine(points,offset){
+  return points.map((point,index)=>{const before=points[Math.max(0,index-1)],after=points[Math.min(points.length-1,index+1)];const dx=after.x-before.x,dy=after.y-before.y,len=Math.hypot(dx,dy)||1;return{x:point.x-dy/len*offset,y:point.y+dx/len*offset};});
+}
+
 function drawRoad(ctx,m,c,dirs,kind){
-  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='rgba(24,35,34,.34)';ctx.lineWidth=m.cell*.48;ctx.shadowColor='rgba(7,23,33,.35)';ctx.shadowBlur=7;ctx.shadowOffsetY=5;ctx.stroke();
-  ctx.shadowBlur=0;ctx.shadowOffsetY=0;traceConnectors(ctx,m,c,dirs);ctx.strokeStyle=kind==='bridge'?'#48565b':'#353f42';ctx.lineWidth=m.cell*.38;ctx.stroke();
-  traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='#e4cb69';ctx.lineWidth=Math.max(1.5,m.cell*.024);ctx.setLineDash([m.cell*.1,m.cell*.095]);ctx.stroke();ctx.setLineDash([]);
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';const lines=connectorLines(m,c,dirs);
+  ctx.shadowColor='rgba(7,23,33,.38)';ctx.shadowBlur=8;ctx.shadowOffsetY=5;ctx.strokeStyle='#c8c6b8';ctx.lineWidth=m.cell*.5;lines.forEach(line=>strokeLine(ctx,line));
+  ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle=kind==='bridge'?'#56646a':'#30383b';ctx.lineWidth=m.cell*.41;lines.forEach(line=>strokeLine(ctx,line));
+  ctx.strokeStyle='rgba(242,238,218,.55)';ctx.lineWidth=Math.max(1,m.cell*.012);for(const line of lines){strokeLine(ctx,offsetLine(line,m.cell*.16));strokeLine(ctx,offsetLine(line,-m.cell*.16));}
+  ctx.strokeStyle='#e8cb61';ctx.lineWidth=Math.max(1.5,m.cell*.022);ctx.setLineDash([m.cell*.11,m.cell*.105]);lines.forEach(line=>strokeLine(ctx,line));ctx.setLineDash([]);
   if(dirs.length>2){ctx.fillStyle='#353f42';ctx.beginPath();ctx.arc(c.x,c.y,m.cell*.19,0,Math.PI*2);ctx.fill();}
   if(kind==='intersection'||kind==='signal')drawCrosswalks(ctx,m,c,dirs);
   ctx.restore();
@@ -453,11 +504,14 @@ function drawCrosswalks(ctx,m,c,dirs){
 }
 
 function drawRail(ctx,m,c,dirs){
-  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
-  traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='rgba(39,42,36,.45)';ctx.lineWidth=m.cell*.3;ctx.shadowColor='rgba(7,23,33,.3)';ctx.shadowBlur=6;ctx.shadowOffsetY=4;ctx.stroke();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-  traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='#8c765c';ctx.lineWidth=m.cell*.22;ctx.stroke();
-  dirs.forEach(dir=>{const [dx,dy]=DRAW_DIRS[dir],px=-dy,py=dx;for(let i=.04;i<.55;i+=.095){ctx.strokeStyle='#342f29';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(c.x+dx*m.cell*i+px*m.cell*.13,c.y+dy*m.cell*i+py*m.cell*.13);ctx.lineTo(c.x+dx*m.cell*i-px*m.cell*.13,c.y+dy*m.cell*i-py*m.cell*.13);ctx.stroke();}});
-  traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='#c5d0ce';ctx.lineWidth=m.cell*.095;ctx.stroke();traceConnectors(ctx,m,c,dirs);ctx.strokeStyle='#4d5555';ctx.lineWidth=m.cell*.045;ctx.stroke();
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';const lines=connectorLines(m,c,dirs);
+  ctx.shadowColor='rgba(7,23,33,.3)';ctx.shadowBlur=6;ctx.shadowOffsetY=4;ctx.strokeStyle='#756c5d';ctx.lineWidth=m.cell*.3;lines.forEach(line=>strokeLine(ctx,line));ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  for(const line of lines){
+    const samples=[];for(let i=0;i<line.length-1;i+=1){const a=line[i],b=line[i+1],steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/(m.cell*.095)));for(let s=0;s<steps;s+=1){const t=s/steps;samples.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,angle:Math.atan2(b.y-a.y,b.x-a.x)});}}
+    ctx.strokeStyle='#3d342b';ctx.lineWidth=3;for(const p of samples){const px=-Math.sin(p.angle)*m.cell*.13,py=Math.cos(p.angle)*m.cell*.13;ctx.beginPath();ctx.moveTo(p.x-px,p.y-py);ctx.lineTo(p.x+px,p.y+py);ctx.stroke();}
+    ctx.strokeStyle='#d3dad7';ctx.lineWidth=m.cell*.035;strokeLine(ctx,offsetLine(line,m.cell*.075));strokeLine(ctx,offsetLine(line,-m.cell*.075));
+    ctx.strokeStyle='#555b5a';ctx.lineWidth=m.cell*.012;strokeLine(ctx,offsetLine(line,m.cell*.075));strokeLine(ctx,offsetLine(line,-m.cell*.075));
+  }
   ctx.restore();
 }
 
@@ -521,11 +575,19 @@ function splinePoint(p0,p1,p2,p3,t){
 }
 
 function vehiclePose(m,vehicle,progress){
-  const route=findPath(simulation.board,vehicle,vehicle.target,vehicle.mode);
-  const next=route?.[1]||{col:vehicle.col,row:vehicle.row};
-  const p0=center(m,{col:vehicle.prev2Col,row:vehicle.prev2Row}),p1=center(m,{col:vehicle.prevCol,row:vehicle.prevRow}),p2=center(m,vehicle),p3=center(m,next);
-  const point=splinePoint(p0,p1,p2,p3,progress);const ahead=splinePoint(p0,p1,p2,p3,Math.min(1,progress+.015));
-  return {...point,angle:Math.atan2(ahead.y-point.y,ahead.x-point.x)};
+  const from=center(m,{col:vehicle.prevCol,row:vehicle.prevRow});
+  const to=center(m,vehicle);
+  const moved=vehicle.prevCol!==vehicle.col||vehicle.prevRow!==vehicle.row;
+  const eased=progress*progress*(3-2*progress);
+  const route=findPath(simulation.board,vehicle,vehicle.target,vehicle.mode,vehicle);
+  let angle=vehicle.renderAngle;
+  if(moved) angle=Math.atan2(to.y-from.y,to.x-from.x);
+  else if(angle==null&&route?.[1]){
+    const next=center(m,route[1]);
+    angle=Math.atan2(next.y-to.y,next.x-to.x);
+  }
+  vehicle.renderAngle=angle??0;
+  return {x:from.x+(to.x-from.x)*eased,y:from.y+(to.y-from.y)*eased,angle:vehicle.renderAngle};
 }
 
 function rememberTrail(vehicle,pose){
@@ -546,18 +608,32 @@ function drawVehicle(ctx,m,vehicle,progress=1){
   if(vehicle.kind==='train'){
     const spacing=m.cell*.47;
     for(let car=2;car>=0;car-=1){const carPose=car?trailPose(vehicle,car,pose,spacing*car):pose;drawVehicleBody(ctx,m,vehicle,carPose,'train',car===0,car);}
-  }else drawVehicleBody(ctx,m,vehicle,pose,'bus',true,0);
+  }else drawVehicleBody(ctx,m,vehicle,pose,vehicle.kind,true,0);
   if(vehicle.waiting){ctx.save();ctx.strokeStyle='#ffcc48';ctx.lineWidth=3;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(pose.x,pose.y,m.cell*(.32+Math.sin(performance.now()/160)*.025),0,Math.PI*2);ctx.stroke();ctx.restore();}
 }
 
 function drawVehicleBody(ctx,m,vehicle,pose,kind,lead,index){
-  const train=kind==='train',w=m.cell*(train ? .42 : .5),h=m.cell*(train ? .23 : .3);
-  ctx.save();ctx.translate(pose.x,pose.y);ctx.rotate(pose.angle);ctx.shadowColor=vehicle.color;ctx.shadowBlur=lead&&simulation?.status==='running'?13:4;ctx.fillStyle=index?mixColor(vehicle.color,'#20313a',.18):vehicle.color;ctx.strokeStyle='#0a181d';ctx.lineWidth=2.5;
-  ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,train?4:9);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
-  if(train){ctx.fillStyle='#a8d9df';for(const wx of [-.22,0,.22])ctx.fillRect(wx*w-h*.12,-h*.28,h*.24,h*.56);ctx.fillStyle='#d8ba4c';ctx.fillRect(-w*.34,-h*.38,w*.68,3);}
-  else{ctx.fillStyle='#9dd7df';ctx.beginPath();ctx.roundRect(-w*.28,-h*.31,w*.52,h*.62,3);ctx.fill();ctx.fillStyle='#17262b';for(const wx of [-.37,.28]){ctx.fillRect(wx*w,-h*.58,w*.16,h*.16);ctx.fillRect(wx*w,h*.42,w*.16,h*.16);}}
-  if(lead){ctx.fillStyle='#fff3b4';ctx.shadowColor='#fff3b4';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(w*.48,-h*.25,2.6,0,Math.PI*2);ctx.arc(w*.48,h*.25,2.6,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#071721';ctx.font=`800 ${m.cell*.09}px Consolas`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(vehicle.id,-w*.07,0);}
-  if(train&&index>0){ctx.strokeStyle='#1a2528';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.5,0);ctx.lineTo(w*.62,0);ctx.stroke();}
+  const train=kind==='train',tram=kind==='tram',car=kind==='car';
+  const w=m.cell*(train ? .44 : tram ? .58 : car ? .34 : .52),h=m.cell*(train ? .22 : tram ? .28 : car ? .25 : .3);
+  ctx.save();ctx.translate(pose.x,pose.y);ctx.rotate(pose.angle);
+  ctx.fillStyle='#182225';for(const axle of [-.28,.28]){ctx.fillRect(axle*w-h*.1,-h*.63,h*.2,h*.22);ctx.fillRect(axle*w-h*.1,h*.41,h*.2,h*.22);}
+  ctx.shadowColor='rgba(10,24,29,.45)';ctx.shadowBlur=8;ctx.shadowOffsetY=4;ctx.fillStyle=index?mixColor(vehicle.color,'#20313a',.18):vehicle.color;ctx.strokeStyle='#162328';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h,car?7:train?4:8);ctx.fill();ctx.stroke();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  if(train){
+    ctx.fillStyle=index?'#b7d6d6':'#dce9e5';ctx.beginPath();ctx.roundRect(-w*.34,-h*.31,w*.46,h*.62,3);ctx.fill();
+    ctx.fillStyle='#29434a';for(const wx of [-.24,-.07,.1])ctx.fillRect(wx*w,-h*.23,w*.1,h*.46);
+    if(!index){ctx.fillStyle='#f0c64b';ctx.fillRect(w*.29,-h*.45,w*.12,h*.9);ctx.fillStyle='#25383d';ctx.fillRect(w*.23,-h*.24,w*.14,h*.48);}
+  }else if(tram){
+    ctx.fillStyle='#dce9e5';ctx.beginPath();ctx.roundRect(-w*.38,-h*.34,w*.68,h*.68,3);ctx.fill();ctx.fillStyle='#29434a';for(const wx of [-.28,-.1,.08,.23])ctx.fillRect(wx*w,-h*.24,w*.1,h*.48);
+    ctx.strokeStyle='#2f4043';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-w*.12,-h*.5);ctx.lineTo(0,-h*.78);ctx.lineTo(w*.14,-h*.5);ctx.stroke();
+  }else if(car){
+    ctx.fillStyle='#b9d9dd';ctx.beginPath();ctx.roundRect(-w*.17,-h*.38,w*.34,h*.76,4);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.45)';ctx.beginPath();ctx.moveTo(-w*.28,0);ctx.lineTo(w*.28,0);ctx.stroke();
+  }else{
+    ctx.fillStyle='#c5e0df';ctx.beginPath();ctx.roundRect(-w*.31,-h*.34,w*.55,h*.68,4);ctx.fill();ctx.fillStyle='#29434a';for(const wx of [-.22,-.04,.14])ctx.fillRect(wx*w,-h*.25,w*.11,h*.5);
+    ctx.fillStyle='rgba(255,255,255,.42)';ctx.fillRect(-w*.08,-h*.49,w*.28,3);
+  }
+  if(lead){ctx.fillStyle='#fff1ad';ctx.shadowColor='#fff1ad';ctx.shadowBlur=7;ctx.beginPath();ctx.arc(w*.46,-h*.28,2.4,0,Math.PI*2);ctx.arc(w*.46,h*.28,2.4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#10232a';ctx.font=`800 ${m.cell*.08}px Bahnschrift`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(vehicle.id,-w*.08,0);}
+  if(train&&index>0){ctx.strokeStyle='#182225';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(w*.5,0);ctx.lineTo(w*.62,0);ctx.stroke();}
   ctx.restore();
 }
 

@@ -281,6 +281,136 @@ function branchCase(id, data) {
   };
 }
 
+const range = (from, to) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
+const h = (row, from, to, type = 'roadStraight') => range(from, to).map(col => fixed(col, row, type, 1));
+const v = (col, from, to, type = 'roadStraight') => range(from, to).map(row => fixed(col, row, type, 0));
+const terminal = (col, row, family, label, rotation = 1) => fixed(col, row, 'terminal', rotation, { family, label });
+const vehicle = (id, kind, mode, color, start, target, spawn, passengers) => ({ id, kind, mode, color, start: pos(...start), target: pos(...target), spawn, passengers });
+
+// Every rebuilt level below is an authored layout. The old template catalogue remains
+// below as reference data, but is deliberately not included in the campaign.
+const REBUILT_LEVELS = [
+  {
+    id:5,code:'TA–005',title:'Riverside diversion',place:'Morrow Bank',discipline:'ROAD GEOMETRY',goal:'Take the replacement bus road around the washed-out riverbank.',
+    briefing:'The direct riverside street has collapsed. Climb to the high road with two bends and a short northbound leg.',hint:'The first bend joins west to north. The second joins south to east.',success:'The diversion is open above the flood line.',
+    inventory:{roadStraight:4,roadCurve:2},slots:slots([3,5],[3,4],[3,3],[3,2],[4,2],[5,2]),fixed:[terminal(0,5,'road','RIVER BUS'),...h(5,1,2),...h(2,6,8),terminal(9,2,'road','HIGH STREET')],
+    vehicles:[vehicle('R5','bus','road','#e75c45',[0,5],[9,2],0,24)],requiredPassengers:24,maxTicks:24,
+    solution:[{col:3,row:5,type:'roadCurve',rotation:3},{col:3,row:4,type:'roadStraight',rotation:0},{col:3,row:3,type:'roadStraight',rotation:0},{col:3,row:2,type:'roadCurve',rotation:1},{col:4,row:2,type:'roadStraight',rotation:1},{col:5,row:2,type:'roadStraight',rotation:1}],
+    terrain:[{kind:'water',col:0,row:6,w:10,h:1},{kind:'water',col:4,row:3,w:6,h:2}],
+  },
+  {
+    id:6,code:'TA–006',title:'Morning loop',place:'Pine Ward',discipline:'ONE-WAY FLOW',goal:'Build the clockwise school route up to East Gate.',
+    briefing:'During school hours the narrow climb becomes one-way. Every arrow must agree with the bus from the lower road to the upper avenue.',hint:'The vertical arrows point north; the avenue arrows point east.',success:'The school loop is flowing in the right direction.',
+    inventory:{oneWay:5,roadCurve:2},slots:slots([3,5],[3,4],[3,3],[3,2],[3,1],[4,1],[5,1]),fixed:[terminal(0,5,'road','SCHOOL'),...h(5,1,2),...h(1,6,8),terminal(9,1,'road','EAST GATE')],
+    vehicles:[vehicle('S6','bus','road','#e75c45',[0,5],[9,1],0,27)],requiredPassengers:27,maxTicks:24,
+    solution:[{col:3,row:5,type:'roadCurve',rotation:3},{col:3,row:4,type:'oneWay',rotation:0},{col:3,row:3,type:'oneWay',rotation:0},{col:3,row:2,type:'oneWay',rotation:0},{col:3,row:1,type:'roadCurve',rotation:1},{col:4,row:1,type:'oneWay',rotation:1},{col:5,row:1,type:'oneWay',rotation:1}],terrain:[{kind:'park',col:4,row:2,w:4,h:3}],
+  },
+  {
+    id:7,code:'TA–007',title:'The red route',place:'Larch Estate',discipline:'TRANSIT PRIORITY',goal:'Give the express bus a shortcut while local traffic uses the ring road.',
+    briefing:'The upper corridor is reserved for buses. Complete it and the express will take the short route; the service car must use the longer public road.',hint:'Use bus lane on the four blue blocks. Both bends remain ordinary road.',success:'Express and local traffic chose the right corridors.',
+    inventory:{busLane:4,roadStraight:2,roadCurve:2},slots:slots([2,2],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[7,2]),
+    fixed:[terminal(0,3,'road','WEST'),fixed(1,3,'roadStraight',1),fixed(2,3,'intersection'),fixed(7,3,'intersection'),fixed(8,3,'roadStraight',1),terminal(9,3,'road','EAST'),fixed(2,4,'roadStraight',0),fixed(2,5,'roadCurve',0),...h(5,3,6),fixed(7,5,'roadCurve',3),fixed(7,4,'roadStraight',0)],
+    vehicles:[vehicle('X7','bus','road','#d94e3f',[0,3],[9,3],0,30),vehicle('V7','car','road','#f3c652',[9,3],[0,3],3,4)],requiredPassengers:34,maxTicks:34,
+    solution:[{col:2,row:2,type:'roadStraight',rotation:0},{col:2,row:1,type:'roadCurve',rotation:1},...range(3,6).map(col=>({col,row:1,type:'busLane',rotation:1})),{col:7,row:1,type:'roadCurve',rotation:2},{col:7,row:2,type:'roadStraight',rotation:0}],terrain:[{kind:'estate',col:3,row:2,w:4,h:2}],
+  },
+  {
+    id:8,code:'TA–008',title:'Civic circle',place:'Orchard Civic',discipline:'YIELD CONTROL',goal:'Merge three shuttle routes through the civic square.',
+    briefing:'Festival shuttles approach the same center from three sides. A roundabout meters them without a stop-light cycle.',hint:'Choose the roundabout, not the plain four-way junction.',success:'All three shuttles circulated through Civic Square.',
+    inventory:{roundabout:1,intersection:1},slots:slots([4,3]),fixed:[terminal(0,3,'road','WEST'),...h(3,1,3),...h(3,5,8),terminal(9,3,'road','EAST'),terminal(4,0,'road','PARK',0),...v(4,1,2),...v(4,4,5),terminal(4,6,'road','MUSEUM',0)],
+    vehicles:[vehicle('C8','bus','road','#e75c45',[0,3],[9,3],0,15),vehicle('P8','bus','road','#efb43f',[4,0],[4,6],2,13),vehicle('M8','bus','road','#4e9da1',[9,3],[4,6],10,12)],requiredPassengers:40,maxTicks:38,
+    solution:[{col:4,row:3,type:'roundabout',rotation:0}],terrain:[{kind:'plaza',col:5,row:1,w:3,h:2}],
+  },
+  {
+    id:9,code:'TA–009',title:'Two green waves',place:'Glass Quarter',discipline:'SIGNAL TIMING',goal:'Protect both junctions along the crosstown bus route.',
+    briefing:'The crosstown line meets two busy north–south streets. Commission both signal heads before releasing three services.',hint:'Both missing junctions need traffic lights.',success:'The crosstown signal wave carried every service through.',
+    inventory:{signalIntersection:2,intersection:2},slots:slots([3,3],[7,3]),
+    fixed:[terminal(0,3,'road','CROSSTOWN'),...h(3,1,2),...h(3,4,6),fixed(8,3,'roadStraight',1),terminal(9,3,'road','TERMINUS'),terminal(3,0,'road','NORTH A',0),...v(3,1,2),...v(3,4,5),terminal(3,6,'road','SOUTH A',0),terminal(7,0,'road','NORTH B',0),...v(7,1,2),...v(7,4,5),terminal(7,6,'road','SOUTH B',0)],
+    vehicles:[vehicle('G9','bus','road','#e75c45',[0,3],[9,3],0,18),vehicle('A9','bus','road','#f1b23d',[3,0],[3,6],2,12),vehicle('B9','bus','road','#4e9da1',[7,6],[7,0],5,12)],requiredPassengers:42,maxTicks:38,
+    solution:[{col:3,row:3,type:'signalIntersection',rotation:0},{col:7,row:3,type:'signalIntersection',rotation:0}],terrain:[{kind:'plaza',col:4,row:0,w:3,h:2}],
+  },
+  {
+    id:10,code:'TA–010',title:'Orchard gates',place:'Wren Fields',discipline:'LEVEL CROSSING',goal:'Protect the orchard road from the branch-line train.',
+    briefing:'A farm road crosses the railway beside a blind hedge. Install active gates so the bus and train never enter together.',hint:'An open crossing connects both routes but cannot stop either vehicle.',success:'The orchard gates sequenced road and rail safely.',
+    inventory:{gatedCrossing:1,levelCrossing:1},slots:slots([6,2]),fixed:[terminal(0,2,'road','VILLAGE'),...h(2,1,5),...h(2,7,8),terminal(9,2,'road','ORCHARD'),terminal(6,0,'rail','BRANCH',0),fixed(6,1,'railStraight',0),...v(6,3,5,'railStraight'),terminal(6,6,'rail','MILL',0)],
+    vehicles:[vehicle('O10','bus','road','#e75c45',[0,2],[9,2],0,19),vehicle('R10','train','rail','#d89c38',[6,0],[6,6],3,22)],requiredPassengers:41,maxTicks:28,
+    solution:[{col:6,row:2,type:'gatedCrossing',rotation:0}],terrain:[{kind:'orchard',col:0,row:3,w:5,h:4}],
+  },
+  {
+    id:11,code:'TA–011',title:'Rails in the street',place:'Copper Row',discipline:'SHARED CORRIDOR',goal:'Complete the shared street for the tram and night bus.',
+    briefing:'Through Copper Row, tram rails sit in the carriageway. The tram starts inside the corridor while the bus joins from the west.',hint:'Only tram-street pieces carry both transport modes.',success:'Bus and tram cleared Copper Row on the same alignment.',
+    inventory:{tramTrack:4,roadStraight:4},slots:slots([3,3],[4,3],[5,3],[6,3]),fixed:[terminal(0,3,'road','WEST'),fixed(1,3,'roadStraight',1),fixed(2,3,'tramTrack',1),fixed(7,3,'tramTrack',1),fixed(8,3,'roadStraight',1),terminal(9,3,'road','COPPER ROW')],
+    vehicles:[vehicle('B11','bus','road','#e75c45',[0,3],[9,3],0,16),vehicle('T11','tram','rail','#e5b13e',[2,3],[7,3],4,34)],requiredPassengers:50,maxTicks:28,
+    solution:range(3,6).map(col=>({col,row:3,type:'tramTrack',rotation:1})),terrain:[{kind:'dense',col:0,row:0,w:10,h:3}],
+  },
+  {
+    id:12,code:'TA–012',title:'Under Station Road',place:'Dale Junction',discipline:'RAIL TUNNEL',goal:'Take the freight line beneath the busy station road.',
+    briefing:'The road must never stop, and a bridge would block the station frontage. Bore the railway below the intersection.',hint:'The tunnel keeps the road east–west and the railway north–south.',success:'Freight passed beneath an uninterrupted Station Road.',
+    inventory:{tunnel:1,gatedCrossing:1,levelCrossing:1},slots:slots([4,4]),fixed:[terminal(0,4,'road','STATION'),...h(4,1,3),...h(4,5,8),terminal(9,4,'road','RING ROAD'),terminal(4,0,'rail','NORTH',0),...v(4,1,3,'railStraight'),fixed(4,5,'railStraight',0),terminal(4,6,'rail','SOUTH',0)],
+    vehicles:[vehicle('D12','bus','road','#e75c45',[0,4],[9,4],0,23),vehicle('F12','train','rail','#d89c38',[4,0],[4,6],2,28)],requiredPassengers:51,maxTicks:26,
+    solution:[{col:4,row:4,type:'tunnel',rotation:0}],terrain:[{kind:'station',col:5,row:1,w:4,h:3}],
+  },
+  {
+    id:13,code:'TA–013',title:'Moss diamond',place:'Moss Exchange',discipline:'RAIL INTERLOCKING',goal:'Interlock the crossing between the main line and quarry branch.',
+    briefing:'Two railways cross at speed. Bare diamond track connects them; an interlocking reserves the center for one movement at a time.',hint:'Fit the interlocking rather than the open diamond.',success:'Passenger and quarry trains crossed under protection.',
+    inventory:{railInterlock:1,railDiamond:1},slots:slots([5,3]),fixed:[terminal(0,3,'rail','WEST'),...h(3,1,4,'railStraight'),...h(3,6,8,'railStraight'),terminal(9,3,'rail','EAST'),terminal(5,0,'rail','QUARRY',0),...v(5,1,2,'railStraight'),...v(5,4,5,'railStraight'),terminal(5,6,'rail','YARD',0)],
+    vehicles:[vehicle('P13','train','rail','#d89c38',[0,3],[9,3],0,31),vehicle('Q13','train','rail','#4e9da1',[5,0],[5,6],2,24)],requiredPassengers:55,maxTicks:30,
+    solution:[{col:5,row:3,type:'railInterlock',rotation:0}],terrain:[{kind:'wetland',col:0,row:0,w:4,h:3}],
+  },
+  {
+    id:14,code:'TA–014',title:'Three-platform throat',place:'Kingsmere',discipline:'STATION SIGNALLING',goal:'Build and signal the two active platform branches.',
+    briefing:'Kingsmere has one approach and two occupied platforms. Points choose the destination; a signal on each branch protects departures.',hint:'Place the points at the throat and one horizontal rail signal on each branch.',success:'Kingsmere accepted both trains on protected routes.',
+    inventory:{railSwitch:1,railSignal:2,railStraight:6,railCurve:2},slots:slots([3,3],[3,2],[3,1],[4,1],[5,1],[6,1],[3,4],[3,5],[4,5],[5,5],[6,5]),
+    fixed:[terminal(0,3,'rail','APPROACH'),...h(3,1,2,'railStraight'),...h(1,7,8,'railStraight'),terminal(9,1,'rail','PLATFORM A'),...h(5,7,8,'railStraight'),terminal(9,5,'rail','PLATFORM C')],
+    vehicles:[vehicle('K14A','train','rail','#d89c38',[0,3],[9,1],0,38),vehicle('K14C','train','rail','#4e9da1',[0,3],[9,5],8,35)],requiredPassengers:73,maxTicks:42,
+    solution:[{col:3,row:3,type:'railSwitch',rotation:3},{col:3,row:2,type:'railStraight',rotation:0},{col:3,row:1,type:'railCurve',rotation:1},{col:4,row:1,type:'railSignal',rotation:1},{col:5,row:1,type:'railStraight',rotation:1},{col:6,row:1,type:'railStraight',rotation:1},{col:3,row:4,type:'railStraight',rotation:0},{col:3,row:5,type:'railCurve',rotation:0},{col:4,row:5,type:'railSignal',rotation:1},{col:5,row:5,type:'railStraight',rotation:1},{col:6,row:5,type:'railStraight',rotation:1}],terrain:[{kind:'station',col:4,row:2,w:5,h:3}],
+  },
+  {
+    id:15,code:'TA–015',title:'Shipyard braid',place:'Anchor Reach',discipline:'COMBINED GEOMETRY',goal:'Curve the dock bus onto the overpass above the shipyard railway.',
+    briefing:'The bus approaches low from the west, climbs to the quay road, then crosses the freight line. Complete both the bend and the grade separation.',hint:'Turn north, turn east, then place the bridge where the railway crosses.',success:'The dock bus climbed across a live freight line.',
+    inventory:{roadCurve:2,roadStraight:3,bridge:1,railStraight:2,levelCrossing:1},slots:slots([2,5],[2,4],[2,3],[3,3],[4,3],[5,3],[5,2],[5,4]),
+    fixed:[terminal(0,5,'road','DOCK BUS'),fixed(1,5,'roadStraight',1),...h(3,6,8),terminal(9,3,'road','SHIPYARD'),terminal(5,0,'rail','ORE',0),fixed(5,1,'railStraight',0),fixed(5,5,'railStraight',0),terminal(5,6,'rail','PIER',0)],
+    vehicles:[vehicle('A15','bus','road','#e75c45',[0,5],[9,3],0,25),vehicle('O15','train','rail','#d89c38',[5,0],[5,6],3,20)],requiredPassengers:45,maxTicks:30,
+    solution:[{col:2,row:5,type:'roadCurve',rotation:3},{col:2,row:4,type:'roadStraight',rotation:0},{col:2,row:3,type:'roadCurve',rotation:1},{col:3,row:3,type:'roadStraight',rotation:1},{col:4,row:3,type:'roadStraight',rotation:1},{col:5,row:3,type:'bridge',rotation:0},{col:5,row:2,type:'railStraight',rotation:0},{col:5,row:4,type:'railStraight',rotation:0}],terrain:[{kind:'water',col:0,row:6,w:10,h:1},{kind:'yard',col:6,row:0,w:4,h:3}],
+  },
+  {
+    id:16,code:'TA–016',title:'School circulation',place:'Banner Square',discipline:'MIXED ROAD RULES',goal:'Build a one-way approach into the roundabout.',
+    briefing:'School buses climb a narrow one-way street before joining the civic circle. Both the arrows and the center control must be correct.',hint:'Point the approach north and use the roundabout at the square.',success:'The school approach and town traffic merged cleanly.',
+    inventory:{oneWay:2,roundabout:1,intersection:1},slots:slots([4,5],[4,4],[4,3]),fixed:[terminal(4,6,'road','SCHOOL',0),terminal(0,3,'road','WEST'),...h(3,1,3),...h(3,5,8),terminal(9,3,'road','EAST'),...v(4,1,2),terminal(4,0,'road','NORTH',0)],
+    vehicles:[vehicle('S16','bus','road','#e75c45',[4,6],[4,0],0,22),vehicle('T16','bus','road','#f0b23e',[0,3],[9,3],2,18)],requiredPassengers:40,maxTicks:30,
+    solution:[{col:4,row:5,type:'oneWay',rotation:0},{col:4,row:4,type:'oneWay',rotation:0},{col:4,row:3,type:'roundabout',rotation:0}],terrain:[{kind:'park',col:5,row:4,w:3,h:3}],
+  },
+  {
+    id:17,code:'TA–017',title:'Cliff branch',place:'Grey Scar',discipline:'RAIL GEOMETRY',goal:'Bend the passenger branch around the rockfall.',
+    briefing:'A rockfall blocks the old cutting. Reconnect the lower station to the upper shelf with a sweeping two-bend railway.',hint:'Rail bends work like road bends, but the longer train makes bad geometry obvious.',success:'The branch climbed around the blocked cutting.',
+    inventory:{railCurve:2,railStraight:5},slots:slots([3,5],[3,4],[3,3],[3,2],[4,2],[5,2],[6,2]),fixed:[terminal(0,5,'rail','LOWER'),...h(5,1,2,'railStraight'),...h(2,7,8,'railStraight'),terminal(9,2,'rail','SUMMIT')],
+    vehicles:[vehicle('G17','train','rail','#d89c38',[0,5],[9,2],0,44)],requiredPassengers:44,maxTicks:28,
+    solution:[{col:3,row:5,type:'railCurve',rotation:3},{col:3,row:4,type:'railStraight',rotation:0},{col:3,row:3,type:'railStraight',rotation:0},{col:3,row:2,type:'railCurve',rotation:1},{col:4,row:2,type:'railStraight',rotation:1},{col:5,row:2,type:'railStraight',rotation:1},{col:6,row:2,type:'railStraight',rotation:1}],terrain:[{kind:'rock',col:4,row:3,w:5,h:4}],
+  },
+  {
+    id:18,code:'TA–018',title:'Hospital grid',place:'St Anne',discipline:'NETWORK TIMING',goal:'Commission two intersections for an ambulance corridor.',
+    briefing:'The hospital route crosses two avenues. A bus enters from each avenue while the ambulance travels the full east–west corridor.',hint:'Fit traffic lights at both missing centers.',success:'The priority corridor delivered every vehicle safely.',
+    inventory:{signalIntersection:2,roundabout:1,intersection:1},slots:slots([2,3],[6,3]),fixed:[terminal(0,3,'road','AMBULANCE'),fixed(1,3,'roadStraight',1),...h(3,3,5),...h(3,7,8),terminal(9,3,'road','HOSPITAL'),terminal(2,0,'road','NORTH',0),...v(2,1,2),...v(2,4,5),terminal(2,6,'road','SOUTH',0),terminal(6,0,'road','UNIVERSITY',0),...v(6,1,2),...v(6,4,5),terminal(6,6,'road','PARK',0)],
+    vehicles:[vehicle('E18','car','road','#e75c45',[0,3],[9,3],0,3),vehicle('N18','bus','road','#efb33f',[2,0],[2,6],2,17),vehicle('S18','bus','road','#4e9da1',[6,6],[6,0],5,16)],requiredPassengers:36,maxTicks:38,
+    solution:[{col:2,row:3,type:'signalIntersection',rotation:0},{col:6,row:3,type:'signalIntersection',rotation:0}],terrain:[{kind:'hospital',col:7,row:0,w:3,h:3}],
+  },
+  {
+    id:19,code:'TA–019',title:'Central approach',place:'Elm Division',discipline:'MULTIMODAL STATION',goal:'Split two trains to their platforms and gate the station road.',
+    briefing:'The station throat branches beside a road crossing. Route both trains, then protect the bus where the lower platform track crosses Station Road.',hint:'The lower branch needs the gated crossing; the upper branch stays plain rail.',success:'Platforms and station road operated as one protected system.',
+    inventory:{railSwitch:1,railCurve:2,railStraight:8,gatedCrossing:1,levelCrossing:1},slots:slots([3,3],[3,2],[3,1],[4,1],[5,1],[6,1],[3,4],[3,5],[4,5],[5,5],[6,5],[7,5]),
+    fixed:[terminal(0,3,'rail','YARD'),...h(3,1,2,'railStraight'),fixed(7,1,'railStraight',1),fixed(8,1,'railStraight',1),terminal(9,1,'rail','PLATFORM 1'),fixed(8,5,'railStraight',1),terminal(9,5,'rail','PLATFORM 2'),terminal(6,3,'road','STATION',0),fixed(6,4,'roadStraight',0),terminal(6,6,'road','TOWN',0)],
+    vehicles:[vehicle('E19','train','rail','#d89c38',[0,3],[9,1],0,34),vehicle('L19','train','rail','#4e9da1',[0,3],[9,5],8,31),vehicle('B19','bus','road','#e75c45',[6,6],[6,3],4,18)],requiredPassengers:83,maxTicks:44,
+    solution:[{col:3,row:3,type:'railSwitch',rotation:3},{col:3,row:2,type:'railStraight',rotation:0},{col:3,row:1,type:'railCurve',rotation:1},{col:4,row:1,type:'railStraight',rotation:1},{col:5,row:1,type:'railStraight',rotation:1},{col:6,row:1,type:'railStraight',rotation:1},{col:3,row:4,type:'railStraight',rotation:0},{col:3,row:5,type:'railCurve',rotation:0},{col:4,row:5,type:'railStraight',rotation:1},{col:5,row:5,type:'railStraight',rotation:1},{col:6,row:5,type:'gatedCrossing',rotation:1},{col:7,row:5,type:'railStraight',rotation:1}],terrain:[{kind:'station',col:4,row:2,w:5,h:3}],
+  },
+  {
+    id:20,code:'TA–020',title:'The city relay',place:'Central Reach',discipline:'NETWORK CAPSTONE',goal:'Complete a safe bus corridor across rail and city traffic.',
+    briefing:'The final route bends onto Central Avenue, bridges the main railway, then meets a north–south bus line at a signal-controlled junction.',hint:'Build the bend, use the bridge over rail, and finish with traffic lights at the eastern junction.',success:'Central Reach ran a complete multimodal timetable.',
+    inventory:{roadCurve:2,roadStraight:4,bridge:1,levelCrossing:1,signalIntersection:1,intersection:1,railStraight:2},slots:slots([2,5],[2,4],[2,3],[3,3],[4,3],[5,3],[5,2],[5,4],[6,3],[7,3]),
+    fixed:[terminal(0,5,'road','WEST BUS'),fixed(1,5,'roadStraight',1),fixed(8,3,'roadStraight',1),terminal(9,3,'road','CENTRAL'),terminal(5,0,'rail','MAIN',0),fixed(5,1,'railStraight',0),fixed(5,5,'railStraight',0),terminal(5,6,'rail','SOUTH',0),terminal(7,0,'road','UPTOWN',0),...v(7,1,2),...v(7,4,5),terminal(7,6,'road','RIVER',0)],
+    vehicles:[vehicle('C20','bus','road','#e75c45',[0,5],[9,3],0,29),vehicle('N20','bus','road','#efb33f',[7,0],[7,6],3,21),vehicle('R20','train','rail','#4e9da1',[5,0],[5,6],2,26)],requiredPassengers:76,maxTicks:40,
+    solution:[{col:2,row:5,type:'roadCurve',rotation:3},{col:2,row:4,type:'roadStraight',rotation:0},{col:2,row:3,type:'roadCurve',rotation:1},{col:3,row:3,type:'roadStraight',rotation:1},{col:4,row:3,type:'roadStraight',rotation:1},{col:5,row:3,type:'bridge',rotation:0},{col:5,row:2,type:'railStraight',rotation:0},{col:5,row:4,type:'railStraight',rotation:0},{col:6,row:3,type:'roadStraight',rotation:1},{col:7,row:3,type:'signalIntersection',rotation:0}],terrain:[{kind:'water',col:0,row:6,w:10,h:1},{kind:'dense',col:0,row:0,w:5,h:3}],
+  },
+];
+
 const EXPANSION_LEVELS = [
   detourCase(5,{title:'Canal diversion',place:'Morrow Bank',discipline:'ROAD GEOMETRY',goal:'Bend the replacement road around the closed canal bridge.',briefing:'The direct street is gone. Carry the bus north, turn east, and meet the upper road.',hint:'A bend connects adjacent sides. The lower bend faces west and north; the upper bend faces south and east.'}),
   lineCase(6,{title:'School street',place:'Pine Ward',discipline:'ONE-WAY FLOW',piece:'oneWay',rotation:1,goal:'Send the school bus east through the new one-way street.',briefing:'The center street is now one-way during pickup. Install three eastbound sections.',hint:'Rotate every arrow to point toward East Gate.',startLabel:'SCHOOL',endLabel:'EAST GATE'}),
@@ -304,4 +434,4 @@ const EXPANSION_LEVELS = [
   mixedCrossCase(24,{title:'Grand interchange',place:'Central Reach',discipline:'NETWORK CAPSTONE',piece:'gatedCrossing',decoys:{levelCrossing:1,bridge:1,tunnel:1},goal:'Choose and commission the final protected interchange.',briefing:'The campaign closes where road and rail share the city floor. Fit active protection and prove the timetable.',hint:'This order requires a protected same-level crossing: use the gates.',maxTicks:34}),
 ];
 
-LEVELS.push(...EXPANSION_LEVELS);
+LEVELS.push(...REBUILT_LEVELS);
